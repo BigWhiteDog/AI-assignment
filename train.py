@@ -12,9 +12,9 @@ from theano import config
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-import tuple3
+import mytuple
 
-datasets = {'tuple3': (tuple3.load_data, tuple3.prepare_data)}
+datasets = {'mytuple': (mytuple.load_data, mytuple.prepare_data)}
 
 # Set the random number generators' seeds for consistency
 SEED = 123
@@ -375,7 +375,7 @@ def train_lstm(
     maxlen=100,  # Sequence longer then this get ignored
     batch_size=1,  # The batch size during training.
     valid_batch_size=1,  # The batch size used for validation/test set.
-    dataset='tuple3',
+    dataset='mytuple',
 
     # Parameter for extra option
     noise_std=0.,
@@ -482,7 +482,6 @@ def train_lstm(
 
                 if numpy.mod(uidx, dispFreq) == 0:
                     print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
-                    #print(' Ua: ',params['Ua'],' Uv: ',params['Uv'])
 
                 if saveto and numpy.mod(uidx, saveFreq) == 0:
                     print('Saving...')

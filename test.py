@@ -27,8 +27,25 @@ voc_d=pickle.load(open(voc_fname,'rb'))
 idx2word=voc_d['idx2word']
 word2idx=voc_d['word2idx']
 
+maxv=0
+for s in sentence_list:
+	for v in s['values']:
+		if(v>maxv):
+			maxv=v
 
+maxa=0
+for s in sentence_list:
+	for a in s['attributes']:
+		if(a>maxa):
+			maxa=a
 
+maxt=0
+for s in sentence_list:
+	for t in s['times']:
+		if(t>maxt):
+			maxt=t
+
+print (maxv,maxa,maxt)
 
 # Set the random number generators' seeds for consistency
 

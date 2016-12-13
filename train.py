@@ -12,9 +12,9 @@ from theano import config
 import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
-import imdb
+import tuple3
 
-datasets = {'imdb': (imdb.load_data, imdb.prepare_data)}
+datasets = {'tuple3': (tuple3.load_data, tuple3.prepare_data)}
 
 # Set the random number generators' seeds for consistency
 SEED = 123
@@ -91,6 +91,9 @@ def init_params(options):
     params = get_layer(options['encoder'])[0](options,
                                               params,
                                               prefix='tav')
+    params = get_layer(options['encoder'])[0](options,
+                                              params,
+                                              prefix='wordr')
     # classifier
     params['U'] = 0.01 * numpy.random.randn(options['dim_proj'],
                                             options['ydim']).astype(config.floatX)
@@ -267,29 +270,41 @@ def build_model(tparams, options):
     # Used for dropout.
     use_noise = theano.shared(numpy_floatX(0.))
 
-    x = tensor.matrix('x', dtype='int64')
+    x = tensor.tensor3('x', dtype='int64')
     mask = tensor.tensor3('mask', dtype=config.floatX)
     y = tensor.vector('y', dtype='int64')
 
-    n_timesteps = x.shape[0]
-    n_samples = x.shape[1]
+    n_timesteps = x.shape[1]
+    n_samples = x.shape[2]
 
-    emb = tparams['Wemb'][x.flatten()].reshape([n_timesteps,
+    emb = tparams['Wemb'][x[0].flatten()].reshape([n_timesteps,
+                                                n_samples,
+                                                options['dim_proj']])
+    embr = tparams['Wemb'][x[1].flatten()].reshape([n_timesteps,
                                                 n_samples,
                                                 options['dim_proj']])
     proj = get_layer(options['encoder'])[1](tparams, emb, options,
                                             prefix='word')
+    projr= get_layer(options['encoder'])[1](tparams, embr, options,
+                                            prefix='wordr')
+
     if options['encoder'] == 'lstm':
         projt = (proj * mask[0][:, :, None]).sum(axis=0)
         proja = (proj * mask[1][:, :, None]).sum(axis=0)
         projv = (proj * mask[2][:, :, None]).sum(axis=0)
-
+        
+        projtr = (projr * mask[3][:, :, None]).sum(axis=0)
+        projar = (projr * mask[4][:, :, None]).sum(axis=0)
+        projvr = (projr * mask[5][:, :, None]).sum(axis=0)
+        
+        projt = (projt+projtr)/2.
+        proja = (proja+projar)/2.
+        projv = (projv+projvr)/2.
+        
         tav = tensor.stack(projt,proja,projv)
         tav_proj = get_layer(options['encoder'])[1](tparams,tav,options,prefix='tav')
-        proj=tav_proj[2]
-        #proj = proj / mask.sum(axis=0)[:, None]
-        #proj /= 3
 
+        proj=tav_proj[2]
     if options['use_dropout']:
         proj = dropout_layer(proj, use_noise, trng)
 
@@ -307,16 +322,10 @@ def build_model(tparams, options):
 
 
 def pred_error(f_pred, prepare_data, data, iterator, verbose=False):
-    """
-    Just compute the error
-    f_pred: Theano fct computing the prediction
-    prepare_data: usual prepare_data for that dataset.
-    """
     valid_err = 0
     pred_1 = 0
     truth_1 = 0
     both_1 = 0
-
     for _, valid_index in iterator:
         x, mask, y = prepare_data(data[0][valid_index],
                                   data[1][valid_index],
@@ -344,6 +353,8 @@ def pred_error(f_pred, prepare_data, data, iterator, verbose=False):
 
     p = numpy_floatX(both_1) / numpy_floatX(pred_1)
     r = numpy_floatX(both_1) / numpy_floatX(truth_1)
+    print("p: ",p)
+    print("r: ",r)
     valid_err = 2 * p * r / (p + r)
     return valid_err
 
@@ -359,12 +370,12 @@ def train_lstm(
     optimizer=adadelta,  # sgd, adadelta and rmsprop available, sgd very hard to use, not recommanded (probably need momentum and decaying learning rate).
     encoder='lstm',  # TODO: can be removed must be lstm.
     saveto='lstm_model.npz',  # The best model will be saved there
-    validFreq=800,  # Compute the validation error after this number of update.
-    saveFreq=25600,  # Save the parameters after every saveFreq updates
+    validFreq=1600,  # Compute the validation error after this number of update.
+    saveFreq=12800,  # Save the parameters after every saveFreq updates
     maxlen=100,  # Sequence longer then this get ignored
     batch_size=1,  # The batch size during training.
     valid_batch_size=1,  # The batch size used for validation/test set.
-    dataset='imdb',
+    dataset='tuple3',
 
     # Parameter for extra option
     noise_std=0.,
@@ -382,7 +393,7 @@ def train_lstm(
     print('Loading data')
     train, valid= load_data(n_words=n_words, valid_portion=0.05,
                                    maxlen=maxlen)
-    ydim = 2 #numpy.max(train[1]) + 1
+    ydim = 2
 
     model_options['ydim'] = ydim
 
@@ -460,7 +471,7 @@ def train_lstm(
                 # This swap the axis!
                 # Return something of shape (minibatch maxlen, n samples)
                 x, mask, y = prepare_data(x, y, my_t, my_a, my_v)
-                n_samples += x.shape[1]
+                n_samples += x.shape[2]
 
                 cost = f_grad_shared(x, mask, y)
                 f_update(lrate)
@@ -471,6 +482,7 @@ def train_lstm(
 
                 if numpy.mod(uidx, dispFreq) == 0:
                     print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
+                    #print(' Ua: ',params['Ua'],' Uv: ',params['Uv'])
 
                 if saveto and numpy.mod(uidx, saveFreq) == 0:
                     print('Saving...')

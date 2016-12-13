@@ -1,12 +1,6 @@
 import json
-#from __future__ import print_function
-#from six.moves import xrange
-
-
 import numpy
 import theano
-
-
 def prepare_data(seqs, labels, t, a, v, maxlen=None):
     """Create the matrices from the datasets.   
 
@@ -18,16 +12,15 @@ def prepare_data(seqs, labels, t, a, v, maxlen=None):
 
     This swap the axis!
     """
-    # x: a list of sentences
-    # ATTENTION s is a 1-d list
     lengths = len(seqs)
     new_seqs = []
-    zuhe = len(labels)
-    x = numpy.zeros((lengths, zuhe)).astype('int64')
-    x_mask = numpy.zeros((3,lengths,zuhe)).astype(theano.config.floatX)
-    for ix in range(0,zuhe):
+    combination = len(labels)
+    x = numpy.zeros((2,lengths, combination)).astype('int64')
+    x_mask = numpy.zeros((6,lengths,combination)).astype(theano.config.floatX)
+    for ix in range(0,combination):
         for jx in range(0,lengths):
-            x[jx][ix] = seqs[jx]
+            x[0][jx][ix] = seqs[jx]
+            x[1][lengths-1-jx][ix] = seqs[jx]
     cnt = 0
     for tt in t:
         for aa in a:
@@ -35,6 +28,9 @@ def prepare_data(seqs, labels, t, a, v, maxlen=None):
                 x_mask[0][vv][cnt] = 1.
                 x_mask[1][aa][cnt] = 1.
                 x_mask[2][tt][cnt] = 1.
+                x_mask[3][lengths-1-vv][cnt]=1.
+                x_mask[4][lengths-1-aa][cnt]=1.
+                x_mask[5][lengths-1-tt][cnt]=1.
                 cnt += 1
     return x, x_mask, labels
 
@@ -101,21 +97,8 @@ def load_data(path="assignment_training_data_word_segment.json", n_words=100000,
     train_set = (train_set_x, train_set_y, train_set_t, train_set_a, train_set_v)
     valid_set = (valid_set_x, valid_set_y, valid_set_t, valid_set_a, valid_set_v)
 
-
-    '''def remove_unk(x):
-        return [[1 if w >= n_words else w for w in sen] for sen in x]
-
-
-    valid_set_x, valid_set_y, valid_set_t, valid_set_a, valid_set_v = valid_set
-    train_set_x, train_set_y, train_set_t, train_set_a, train_set_v = train_set
-
-    train_set_x = remove_unk(train_set_x)
-    valid_set_x = remove_unk(valid_set_x)'''
-
-
     def len_argsort(seq):
         return sorted(range(len(seq)), key=lambda x: len(seq[x]))
-
 
     if sort_by_len:
     #if True

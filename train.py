@@ -17,7 +17,7 @@ import mytuple
 datasets = {'mytuple': (mytuple.load_data, mytuple.prepare_data)}
 
 # Set the random number generators' seeds for consistency
-SEED = 123
+SEED = 666
 numpy.random.seed(SEED)
 
 def numpy_floatX(data):
@@ -361,8 +361,8 @@ def pred_error(f_pred, prepare_data, data, iterator, verbose=False):
 
 def train_lstm(
     dim_proj=32,  # word embeding dimension and LSTM number of hidden units.
-    patience=10,  # Number of epoch to wait before early stop if no progress
-    max_epochs=100,  # The maximum number of epoch to run
+    patience=1000,  # Number of epoch to wait before early stop if no progress
+    max_epochs=100,  # The maximum number of epoch to run (sentece)
     dispFreq=100, # Display to stdout the training progress every N updates
     decay_c=0.,  # Weight decay for the classifier applied to the U weights.
     lrate=0.0001,  # Learning rate for sgd (not used for adadelta and rmsprop)
@@ -372,7 +372,7 @@ def train_lstm(
     saveto='lstm_model.npz',  # The best model will be saved there
     validFreq=1600,  # Compute the validation error after this number of update.
     saveFreq=12800,  # Save the parameters after every saveFreq updates
-    maxlen=150,  # Sequence longer then this get ignored
+    maxlen=100,  # Sequence longer then this get ignored
     batch_size=1,  # The batch size during training.
     valid_batch_size=1,  # The batch size used for validation/test set.
     dataset='mytuple',
@@ -381,7 +381,7 @@ def train_lstm(
     noise_std=0.,
     use_dropout=True,  # if False slightly faster, but worst test error
                        # This frequently need a bigger model.
-    reload_model=None,  # Path to a saved model we want to start from.
+    reload_model=True,  # Path to a saved model we want to start from.
 ):
 
     # Model options
@@ -403,7 +403,9 @@ def train_lstm(
     params = init_params(model_options)
 
     if reload_model:
+        print('Reloading')
         load_params('lstm_model.npz', params)
+        # print(params)
 
     # This create Theano Shared Variable from the parameters.
     # Dict name (string) -> Theano Tensor Shared Variable
@@ -455,7 +457,6 @@ def train_lstm(
 
             # Get new shuffled index for the training set.
             kf = get_minibatches_idx(len(train[0]), batch_size, shuffle=True)
-
             for _, train_index in kf:
                 uidx += 1
                 use_noise.set_value(1.)
@@ -466,13 +467,18 @@ def train_lstm(
                 my_t = train[2][train_index]
                 my_a = train[3][train_index]
                 my_v = train[4][train_index]
-
+                # print('uidx',uidx,'train index',train_index)
+                # print('x',x)
+                # print('y',y)
+                # print('t',my_t)
+                # print('a',my_a)
+                # print('v',my_v)
                 # Get the data in numpy.ndarray format
                 # This swap the axis!
                 # Return something of shape (minibatch maxlen, n samples)
                 x, mask, y = prepare_data(x, y, my_t, my_a, my_v)
                 n_samples += x.shape[2]
-
+                # print('x',x)
                 cost = f_grad_shared(x, mask, y)
                 f_update(lrate)
 
@@ -521,7 +527,6 @@ def train_lstm(
                             break
 
             print('Seen %d samples' % n_samples)
-
             if estop:
                 break
 
@@ -554,5 +559,5 @@ def train_lstm(
 if __name__ == '__main__':
     # See function train for all possible parameter and there definition.
     train_lstm(
-        max_epochs=100,
+        max_epochs=500,
     )

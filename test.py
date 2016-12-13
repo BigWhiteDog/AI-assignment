@@ -47,6 +47,15 @@ for s in sentence_list:
 
 print (maxv,maxa,maxt)
 
+maxl=0
+for s in sentence_list:
+	if(len(s['indexes'])>maxl):
+			maxl=len(s['indexes'])
+count=0
+for s in sentence_list:
+	if(len(s['indexes'])>100):
+		count+=1
+
 # Set the random number generators' seeds for consistency
 
 

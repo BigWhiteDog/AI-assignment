@@ -63,6 +63,7 @@ def my_load_data(path="assignment_training_data_word_segment.json", maxlen=None)
     sentence_list_fname = path
     sentence_list = json.load(open(sentence_list_fname,'r'))
     sentences = []
+    results=[]
     times = []
     attributes = []
     values = []
@@ -82,9 +83,6 @@ def my_load_data(path="assignment_training_data_word_segment.json", maxlen=None)
     train_set = (sentences,results,times,attributes,values,ids)
 
     return train_set
-
-def get_result()
-	return result
 
 datasets = {'train_tuple': (my_load_data, my_prepare_data)}
 
@@ -260,6 +258,7 @@ def build_model(tparams, options):
 
 def prepared_lstm(
     dim_proj=32,  # word embeding dimension and LSTM number of hidden units.
+    n_words=3000,
     encoder='lstm',  # TODO: can be removed must be lstm.
     maxlen=None,  # Sequence longer then this get ignored
     dataset='train_tuple',
@@ -284,7 +283,7 @@ def prepared_lstm(
 
     (x,mask,f_pred) = build_model(tparams, model_options)
     my_result_list=[]
-    for test_index in range(0,len(the_test)):
+    for test_index in range(0,len(the_test[5])):
         y = the_test[1][test_index]
         x = the_test[0][test_index]
         my_t = the_test[2][test_index]
@@ -345,3 +344,9 @@ def predict(input_file_path, output_file_path):
         results.append(temp)
 
     json.dump(results, open(output_file_path, 'w'))
+
+if __name__ == '__main__':
+    predict(
+        "assignment_training_data_word_segment.json",
+        "my_res.json"
+    )

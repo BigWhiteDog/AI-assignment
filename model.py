@@ -57,7 +57,7 @@ def my_prepare_data(seqs, labels, t, a, v, maxlen=None):
                 x_mask[4][lengths-1-aa][cnt]=1.
                 x_mask[5][lengths-1-tt][cnt]=1.
                 cnt += 1
-    return x, x_mask, labels
+    return x, x_mask
 
 def my_load_data(path="assignment_training_data_word_segment.json", maxlen=None):
     sentence_list_fname = path
@@ -66,7 +66,9 @@ def my_load_data(path="assignment_training_data_word_segment.json", maxlen=None)
     times = []
     attributes = []
     values = []
+    ids=[]
     for dic in sentence_list[:]:
+        ids.append(dic['sentenceId'])
         sentences.append(dic['indexes'])
         times.append(dic['times'])
         attributes.append(dic['attributes'])
@@ -77,23 +79,8 @@ def my_load_data(path="assignment_training_data_word_segment.json", maxlen=None)
                 for v in dic ['values']:
                     t_list.append([t,a,v])
         results.append(t_list)
-    train_set = (sentences,results,times,attributes,values)
+    train_set = (sentences,results,times,attributes,values,ids)
 
-    if maxlen:
-        new_train_set_x = []
-        new_train_set_y = []
-        new_train_set_t = []
-        new_train_set_a = []
-        new_train_set_v = []
-        for x, y, t, a, v in zip(train_set[0], train_set[1], train_set[2], train_set[3], train_set[4]):
-            if len(x) < maxlen:
-                new_train_set_x.append(x)
-                new_train_set_y.append(y)
-                new_train_set_t.append(t)
-                new_train_set_a.append(a)
-                new_train_set_v.append(v)
-        train_set = (new_train_set_x, new_train_set_y, new_train_set_t, new_train_set_a, new_train_set_v)
-        del new_train_set_x, new_train_set_y, new_train_set_t, new_train_set_a, new_train_set_v
     return train_set
 
 def get_result()
@@ -274,7 +261,6 @@ def build_model(tparams, options):
 def prepared_lstm(
     dim_proj=32,  # word embeding dimension and LSTM number of hidden units.
     encoder='lstm',  # TODO: can be removed must be lstm.
-    saveto='lstm_model.npz',  # The best model will be saved there
     maxlen=None,  # Sequence longer then this get ignored
     dataset='train_tuple',
     reload_model=True,  # Path to a saved model we want to start from.
@@ -294,10 +280,6 @@ def prepared_lstm(
     if reload_model:
         print('Reloading')
         load_params('lstm_model.npz', params)
-
-    # This create Theano Shared Variable from the parameters.
-    # Dict name (string) -> Theano Tensor Shared Variable
-    # params and tparams have different copy of the weights.
     tparams = init_tparams(params)
 
     (x,mask,f_pred) = build_model(tparams, model_options)
@@ -308,19 +290,10 @@ def prepared_lstm(
         my_t = the_test[2][test_index]
         my_a = the_test[3][test_index]
         my_v = the_test[4][test_index]
-        # Get the data in numpy.ndarray format
-        # This swap the axis!
-        # Return something of shape (minibatch maxlen, n samples)
         x, mask = prepare_data(x, y, my_t, my_a, my_v)
         my_result=f_pred(x,mask)
         my_result_list.append(my_result)
-        if saveto and numpy.mod(uidx, saveFreq) == 0:
-            print('Saving...')
-            numpy.savez(saveto, history_errs=history_errs, **params)
-            pickle.dump(model_options, open('%s.pkl' % saveto, 'wb'), -1)
-            print('Done')
-
-    return train_err, valid_err
+    return the_test,my_result_list
 
 def predict(input_file_path, output_file_path):
     '''
@@ -356,5 +329,19 @@ def predict(input_file_path, output_file_path):
     '''
 
     ############ Complete the code below ############
+    the_test,my_result_list=prepared_lstm(input_file_path=input_file_path)
+    
+    results=[]
+    
+    for i in range(0,len(the_test[5])):
+        temp={}
+        temp["sentenceId"]=the_test[5][i]
+        temp_list=[]
+        for j in range(0,len(my_result_list[i])):
+            if(my_result_list[i][j]==1):
+                temp_list.append(the_test[1][i][j])
+        temp["results"]=temp_list
+        
+        results.append(temp)
 
     json.dump(results, open(output_file_path, 'w'))

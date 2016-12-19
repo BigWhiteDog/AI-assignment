@@ -372,7 +372,7 @@ def train_lstm(
     saveto='lstm_model.npz',  # The best model will be saved there
     validFreq=1600,  # Compute the validation error after this number of update.
     saveFreq=12800,  # Save the parameters after every saveFreq updates
-    maxlen=100,  # Sequence longer then this get ignored
+    maxlen=None,  # Sequence longer then this get ignored
     batch_size=1,  # The batch size during training.
     valid_batch_size=1,  # The batch size used for validation/test set.
     dataset='mytuple',
